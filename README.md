@@ -39,8 +39,6 @@ Dernières versions stables pour **Windows** et **macOS** :
 > **macOS** : au premier lancement, clic-droit sur l'icône → **Ouvrir** →
 > confirmer. L'app est signée Tauri mais pas notarized Apple.
 
-> **Code source** : <https://github.com/HydrowZer/Hydrowapp>
-
 ---
 
 ## ✨ Le principe
@@ -100,12 +98,10 @@ Les apps générées peuvent embarquer de l'IA OpenAI via le pont `window.lafabr
 - **Échappatoire** — `openai(path, body)` pour tout endpoint OpenAI autorisé
 
 La clé API ne vit **jamais** dans une app livrée : elle reste côté serveur sur un
-**proxy partagé** (Vercel Edge Function — dossier `ai-proxy/`). Chaque app, et
-La Fabrik elle-même pour ses icônes, porte un token HMAC signé minté au build.
-Sans proxy configuré, `window.lafabrik.ai` se désactive proprement et les icônes
-retombent sur la clé OpenAI de l'utilisateur.
-
-Déploiement du proxy : voir [`ai-proxy/README.md`](https://github.com/HydrowZer/Hydrowapp/blob/main/ai-proxy/README.md).
+**proxy partagé** (Vercel Edge Function). Chaque app, et La Fabrik elle-même pour
+ses icônes, porte un token HMAC signé minté au build. Sans proxy configuré,
+`window.lafabrik.ai` se désactive proprement et les icônes retombent sur la clé
+OpenAI de l'utilisateur.
 
 ## 🎯 Fonctionnalités
 
@@ -118,7 +114,7 @@ Déploiement du proxy : voir [`ai-proxy/README.md`](https://github.com/HydrowZer
 - Génération d'icône d'app **et** de glyphe de barre de menu
 - Dimensions de fenêtre choisies par l'IA selon le type d'app
 - Historique des apps : ouvrir · modifier · **Studio (édition visuelle)** · **régénérer l'icône** · exporter · **publier sur le store** · désinstaller
-- **Store hébergé** — catalogue navigable, publication avec auth GitHub, détection de mises à jour avec bouton « Mettre à jour », modération (voir [§ Store](#-store))
+- **Store hébergé** — catalogue navigable, publication avec auth GitHub, détection de mises à jour avec bouton « Mettre à jour », modération
 - Interface bilingue (français / anglais)
 - Apps générées avec le catalogue **shadcn/ui complet** (46 composants) pré-installé
 - Apps générées **capables d'IA** — texte, vision, images, audio, voix temps réel
@@ -142,13 +138,10 @@ pour dicter des modifications en langage naturel.
 **Sélection au clic** — bascule en mode « Sélection », clique sur n'importe quel
 élément de la preview. Le panneau IA reçoit le contexte du composant (fichier,
 ligne, snippet ±10 lignes) — la modification suivante cible précisément cet
-élément. Implémenté via un plugin Babel custom injecté en preview qui pose un
-`data-lafabrik-source` sur chaque JSX, indépendant des internes React (qui
-changent entre versions majeures).
+élément.
 
 **Drag & drop de fratries** — en mode sélection, drag un élément sur un de ses
-frères (même parent DOM) pour les réordonner. Le swap est délégué à l'IA via
-un prompt contextuel — plus robuste qu'une manipulation AST côté JS.
+frères (même parent DOM) pour les réordonner.
 
 **Validation finale** — bouton « Terminer » : un seul rebuild + réinstall
 applique toutes les modifs accumulées pendant la session.
@@ -163,20 +156,13 @@ au code.
 ## 🏪 Store
 
 La Fabrik embarque un **store hébergé** : tu peux publier les apps que tu as
-générées et installer celles publiées par d'autres utilisateurs. Architecture
-détaillée dans [`docs/STORE.md`](https://github.com/HydrowZer/Hydrowapp/blob/main/docs/STORE.md).
+générées et installer celles publiées par d'autres utilisateurs.
 
 **Principe — sources, pas binaires.** Le store distribue le code source
 (quelques Ko à quelques centaines de Ko en JSON) ; chaque utilisateur **rebuild
 en local** via le pipeline existant. Cross-platform gratuit, coûts d'hébergement
 faibles, zéro crédit IA consommé au téléchargement (icônes et code sont déjà
 dans le manifeste).
-
-**Sécurité.** `templateVersion` strict garantit que l'app installée se comporte
-exactement comme celle testée par l'auteur. Allow-list de chemins dans le
-pipeline d'écriture (`src/`, `public/`) — un publieur ne peut pas livrer un
-`index.html` qui contournerait la CSP. Le proxy IA reste whitelisté serveur,
-impossible à détourner en endpoint d'upload.
 
 **Cycle de vie complet** :
 
@@ -189,30 +175,12 @@ impossible à détourner en endpoint d'upload.
    `ai`, `shell:open-external`, `mic`, `tray`) avant le téléchargement.
 4. **Recevoir les MAJ** — badge « MAJ disponible » sur l'accueil quand l'auteur
    publie une nouvelle version ; un clic « Mettre à jour » remplace l'install.
-5. **Modérer** — bouton « Signaler » sur la page détail ; les admins (whitelist
-   `ADMIN_USER_IDS` côté serveur) traitent la file dans une vue dédiée
-   (Rejeter / Retirer l'app).
+5. **Signaler** — bouton « Signaler » sur la page détail ; l'app est retirée si
+   modérée.
 
-**Auth** : OAuth GitHub via Supabase avec **PKCE + loopback TCP éphémère**
-(pattern `gh auth login`, `vercel login`). Le handle GitHub devient le namespace
-des slugs : `@charles/pomodoro`. Deux auteurs peuvent publier des apps de même
-nom sans collision.
-
-**Backend** : Supabase (Postgres + Auth + RLS publique lecture) + Vercel
-Functions (routes `/api/store/*` dans `ai-proxy/api/store.ts`). Le service role
-Supabase ne sort jamais du serveur.
-
-## 🌐 Site web
-
-Le dossier [`website/`](https://github.com/HydrowZer/Hydrowapp/tree/main/website) contient la landing publique de La Fabrik :
-détection automatique de l'OS (proposition du bon installeur), résolution de
-la dernière version via l'API GitHub des releases, et un mockup d'accueil qui
-affiche les apps du store réelles. Vite + React 19 + Tailwind 4, déployée
-sur Vercel.
-
-Les icônes et métadonnées du mockup viennent d'un manifest généré à la main
-via `pnpm sync:store` (le site lit ensuite le manifest local — zéro requête
-réseau au runtime, hébergement statique).
+**Auth** : OAuth GitHub. Le handle GitHub devient le namespace des slugs :
+`@charles/pomodoro`. Deux auteurs peuvent publier des apps de même nom sans
+collision.
 
 ## 🏗️ Stack
 
@@ -225,64 +193,6 @@ réseau au runtime, hébergement statique).
 - Electron + React 19 + TypeScript + Vite + Tailwind CSS 4 + shadcn/ui
 - Renderer sandboxé (`contextIsolation`, pas d'accès Node direct)
 - Pont `window.lafabrik` — filesystem (lecture seule), shell, dialogs, tray, **IA OpenAI**
-
-## 📦 Prérequis
-
-- **Node.js** + **npm** (La Fabrik les utilise pour builder les apps générées)
-- **Rust** (pour builder La Fabrik lui-même)
-- Un **moteur IA** : Claude Code CLI, Codex CLI, ou une clé API Anthropic / OpenAI
-- Une **clé OpenAI** pour les icônes — sauf si le proxy IA (`ai-proxy/`) est configuré
-
-## 🚀 Développement
-
-```bash
-pnpm install
-pnpm tauri dev
-```
-
-Au premier lancement, l'écran de configuration installe le template Electron
-(copie des fichiers + `npm install`, une seule fois).
-
-## 🔨 Build
-
-```bash
-pnpm tauri build
-```
-
-## 📁 Structure du projet
-
-```
-src/                  Frontend React — l'interface de La Fabrik
-  lib/                orchestrateur, moteurs IA, i18n, store, prompts
-                      studio-protocol.ts · studio-bridge.ts (pont Studio ↔ host)
-                      auth.ts · auth-store.ts (OAuth GitHub PKCE)
-                      store-api.ts · store-package.ts · publish.ts · app-update.ts
-                      image.ts (resize thumbnail Canvas)
-  components/         composants UI
-                      StudioView · StudioAIPanel · StudioFinalizeOverlay
-                      RegenerateIconDialog
-                      StoreView · StoreCard · StoreDetail · UserMenu
-                      PublishDialog · MyPublicationsView · InstallConsentDialog
-                      ReportDialog · ModerationView
-src-tauri/            Backend Rust (Tauri)
-  src/commands/       commandes IPC : checks CLI, build, install, icônes
-                      studio.rs : sidecar Vite + sync runtime du shim
-                      oauth.rs : loopback TCP éphémère pour OAuth desktop
-  src/ai_token.rs     mint des tokens HMAC pour le proxy IA
-  src/proc.rs         helpers de spawn de process (sans fenêtre console)
-templates/
-  electron-app/       template Electron hérité par chaque app générée
-                      src/lafabrik-preview-shim.ts (window.lafabrik via postMessage en preview)
-                      vite.config.ts (plugin Babel data-lafabrik-source en preview)
-ai-proxy/             proxy OpenAI + backend du store (Vercel Functions)
-                      api/openai.ts : proxy IA (garde la clé API)
-                      api/store.ts : routes /api/store/* (catalogue, publication,
-                                     MAJ, télémétrie, modération)
-website/              landing publique (Vite + React + Tailwind, déployée sur Vercel)
-                      détection OS · release GitHub · mockup avec apps du store
-                      scripts/sync-store-apps.mjs : génère le manifest local des apps
-docs/STORE.md         architecture détaillée du store (lots, sécurité, schéma DB)
-```
 
 ## 📄 Licence
 
