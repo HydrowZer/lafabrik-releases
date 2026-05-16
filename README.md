@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/HydrowZer/Hydrowapp/main/src-tauri/icons/128x128@2x.png" width="120" height="120" alt="La Fabrik" />
+<img src="logo.png" width="120" height="120" alt="La Fabrik" />
 
 # La Fabrik
 
